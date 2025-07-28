@@ -1,0 +1,189 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Post {
+  id        Int      @id @default(autoincrement())
+  title     String   @db.VarChar(255)
+  content   String
+  body      String
+  image     String
+  authorId  Int
+  categoryId Int
+  typeId    Int
+  category Category @relation(fields: [categoryId], references: [id])
+  type      Type     @relation(fields: [typeId], references: [id])
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Profile {
+  id     Int     @id @default(autoincrement())
+  bio    String?
+  user   User    @relation(fields: [userId], references: [id])
+  userId Int     @unique
+}
+
+enum Role {
+  USER
+  ADMIN
+  Author
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  FREEZE
+}
+
+model User {
+  id      Int      @id @default(autoincrement())
+  firstName String? @db.VarChar(55)
+  lastName  String? @db.VarChar(55)
+  phone   String @unique @db.VarChar(15)
+  password String
+  email   String   @unique @db.VarChar(30)
+  role Role @default(USER)
+  status Status @default(ACTIVE)
+  lastLogin DateTime?
+  errorLoginCount Int @default(0) @db.SmallInt
+  randToken String
+  image String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  posts   Post[]
+  profile Profile?
+  orders  Order[]
+  // @@map("users")
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(52)
+  posts     Post[]
+  products  Product[]
+}
+
+model Type {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(52)
+  posts     Post[]
+  products  Product[]
+}
+
+model tag {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(52)
+  taggable  Taggable[]
+}
+
+model Taggable {
+  id        Int      @id @default(autoincrement())
+  tagId     Int
+  tag       tag      @relation(fields: [tagId], references: [id])
+  type String @db.VarChar(7) // e.g., 'post', 'user', etc.
+  typeId   Int
+
+}
+
+model Product {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(255)
+  description String
+  price     Decimal @db.Decimal(10, 2)
+  discount Decimal @default(0) @db.Decimal(10, 2)
+  rating Int @default(0) @db.SmallInt
+  inventory Int @default(0) @db.SmallInt
+  status Status @default(ACTIVE)
+  categoryId Int
+  typeId    Int
+  category Category @relation(fields: [categoryId], references: [id])
+  type      Type     @relation(fields: [typeId], references: [id])
+  images    Image[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    ProductsOnOrder[]
+}
+
+model Image {
+  id        Int      @id @default(autoincrement())
+  path       String   @db.VarChar(255)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model Order {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  code     String   @unique @db.VarChar(15)
+  totalPrice     Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  products ProductsOnOrder[]
+}
+
+model ProductsOnOrder {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  order     Order    @relation(fields: [orderId], references: [id])
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int      @default(1) @db.SmallInt
+  price     Decimal  @db.Decimal(10, 2)
+}
+
+model Otp {
+  id        Int      @id @default(autoincrement())
+  phone     String   @unique@db.VarChar(15)
+  otp     String
+  rememberToken String
+  verifyToken String?
+  count     Int      @default(0) @db.SmallInt
+  error Int @default(0) @db.SmallInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// model City {
+//   id        Int      @id @default(autoincrement())
+//   name      String   @unique @db.VarChar(52)
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+//   `npx prisma db push` // This line is a comment, not a Prisma directive
+// }
+
+// Rename column without migration
+// `npx prisma migrate dev --create-only` // This command creates a migration without applying it, allowing you to modify the schema without affecting the database immediately.
+// change query manually -> ALTER TABLE "Otp" RENAME COLUMN "rememberToken" TO "rememberTokens";
+
+// Add a new column at a specific position
+// `npx prisma migrate dev --create-only` // This command creates a migration without applying it, allowing you to modify the schema without affecting the database immediately.
+// change query manually -> ALTER TABLE "Otp" ADD COLUMN "verifyToken" VARCHAR(255) NULL AFTER "otp";
+// Caution: Doesn't work with PostgreSQL.
+
+//Reset database
+// `npx prisma migrate reset` // This command resets the database, applying all migrations from scratch. Use with caution as it will delete all data.
+
+//Existing database
+// `npx prisma db pull` // This command introspects the existing database and updates the Prisma schema to match the current database structure. It does not create or modify any migrations.
+//Find differences between schema and database
+// `npx prisma db diff \
+// --from -empty \
+// --to-schema-datamodel ./prisma/schema.prisma \
+// --script > prisma/migration/0_init/migration.sql`
+//Then Resolve
+//`npx prisma migrate resolve --applied "0_init"` // This command marks the migration as applied without actually running it, useful for resolving differences between the schema and the database without applying changes.

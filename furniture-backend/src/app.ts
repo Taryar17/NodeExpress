@@ -3,10 +3,13 @@ import helmet from "helmet";
 import compression from "compression";
 import cors from "cors";
 import morgan from "morgan";
-import { check } from "./middlewares/check";
 import { Request, Response } from "express";
 
 import { limiter } from "./middlewares/rateLimiter";
+import healthRoutes from "./routes/v1/auth";
+import authRoutes from "./routes/v1/auth";
+import viewRoutes from "./routes/v1/view";
+//import * as errorController from "./controllers/web/errorControllers";
 
 export const app = express();
 
@@ -17,18 +20,16 @@ app.use(cors());
 app.use(helmet());
 app.use(compression());
 app.use(limiter);
+app.use(express.static("public"));
 
-interface CustomRequest extends Request {
-  userId?: number;
-}
+app.set("view engine", "ejs");
+app.set("views", "./src/views");
 
-app.get("/health", check, (req: CustomRequest, res: Response) => {
-  throw new Error("This is a test error");
-  res.status(200).json({
-    message: "Hello we are ready for sending response",
-    userId: req.userId || 7,
-  });
-});
+app.use("/api/v1", healthRoutes);
+app.use("/api/v1", viewRoutes);
+app.use("/api/v1", authRoutes);
+
+//app.use(errorController.notFound);
 
 app.use((error: any, req: Request, res: Response, next: NextFunction) => {
   const status = error.status || 500;
